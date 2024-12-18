@@ -1,26 +1,29 @@
 const jwt = require('jsonwebtoken');
 
 module.exports = function (req, res, next) {
-  const token = req.header('Authorization');
+  // Extract token from Authorization or x-auth-token
+  let token = req.header('x-auth-token');
 
-  // Check if no token exists
+  // Check Authorization header for Bearer token
+  if (!token) {
+    const authHeader = req.header('Authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1]; // Extract Bearer token
+    }
+  }
+
+  // Return error if no token is provided
   if (!token) {
     return res.status(401).json({ msg: 'No token, authorization denied' });
   }
 
   try {
-    // Extract Bearer token value
-    const splitToken = token.split(' ')[1];
-    if (!splitToken) {
-      return res.status(401).json({ msg: 'Malformed token, authorization denied' });
-    }
-
     // Verify token
-    const decoded = jwt.verify(splitToken, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Attach userId to the request object
-    req.user = decoded.userId;
-    console.log('Decoded User ID:', req.user);
+    // Attach the decoded user info to req.user
+    req.user = decoded; // Assumes token payload includes userId
+    console.log('Decoded User Info:', req.user);
 
     next();
   } catch (err) {
