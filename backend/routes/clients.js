@@ -6,7 +6,7 @@ const Client = require('../models/Client'); // Client model
 // GET: Fetch all clients
 router.get('/', auth, async (req, res) => {
   try {
-    const clients = await Client.find({ userId: req.user }); // Fetch clients for the logged-in user
+    const clients = await Client.find({ userId: req.user });
     res.json(clients);
   } catch (err) {
     console.error(err.message);
@@ -38,19 +38,16 @@ router.put('/:id', auth, async (req, res) => {
   try {
     const { name, email, phone } = req.body;
 
-    // Build update object
     const updatedFields = {};
     if (name) updatedFields.name = name;
     if (email) updatedFields.email = email;
     if (phone) updatedFields.phone = phone;
 
-    // Find and update
     let client = await Client.findById(req.params.id);
     if (!client) {
       return res.status(404).json({ msg: 'Client not found' });
     }
 
-    // Ensure user owns the client
     if (client.userId.toString() !== req.user) {
       return res.status(401).json({ msg: 'Unauthorized' });
     }
@@ -74,32 +71,20 @@ router.put('/:id', auth, async (req, res) => {
 // DELETE: Delete a client by ID
 router.delete('/:id', auth, async (req, res) => {
   try {
-    console.log('Delete Request Received'); // Log request start
-
     const client = await Client.findById(req.params.id);
 
     if (!client) {
-      console.log('Client not found');
       return res.status(404).json({ msg: 'Client not found' });
     }
 
-    console.log('Client found:', client);
-
-    // Ensure user owns the client
     if (client.userId.toString() !== req.user) {
-      console.log('Unauthorized access');
       return res.status(401).json({ msg: 'Unauthorized' });
     }
 
-    console.log('User authorized, deleting client...');
-    
-     // Delete the client using findByIdAndDelete
-     await Client.findByIdAndDelete(req.params.id);
-
-    console.log('Client deleted successfully');
+    await Client.findByIdAndDelete(req.params.id);
     res.json({ msg: 'Client deleted successfully' });
   } catch (err) {
-    console.error('Error occurred:', err.message); // Log the error message
+    console.error('Error occurred:', err.message);
     if (err.kind === 'ObjectId') {
       return res.status(400).json({ msg: 'Invalid client ID' });
     }
@@ -112,23 +97,19 @@ router.post('/', auth, async (req, res) => {
   try {
     const { name, email, phone } = req.body;
 
-    // Ensure required fields exist
     if (!name || !email || !phone) {
       return res.status(400).json({ msg: 'Please provide name, email, and phone' });
     }
 
-    // Get userId from the decoded token (set by auth middleware)
     const userId = req.user;
 
-    // Create a new client
     const newClient = new Client({
       name,
       email,
       phone,
-      userId, // Associate the client with the logged-in user
+      userId,
     });
 
-    // Save the client to the database
     await newClient.save();
 
     res.status(201).json({ msg: 'Client added successfully', client: newClient });

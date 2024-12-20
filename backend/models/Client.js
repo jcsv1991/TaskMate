@@ -13,7 +13,7 @@ const ClientSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  userId: { // This will associate the client with the authenticated user
+  userId: { 
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true,

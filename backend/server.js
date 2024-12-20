@@ -16,15 +16,15 @@ connectDB();
 const authRoute = require('./routes/auth');
 const clientsRoute = require('./routes/clients');
 const tasksRoute = require('./routes/tasks');
-const testRoute = require('./routes/test'); // Import test route
+const invoicesRoute = require('./routes/invoices');
+const testRoute = require('./routes/test'); // Example test route
 
 // Routes
 app.use('/api/auth', authRoute);
 app.use('/api/clients', clientsRoute);
 app.use('/api/tasks', tasksRoute);
-app.use('/api', testRoute); // Register test route here
-app.use('/api/invoices', require('./routes/invoices'));
-
+app.use('/api/invoices', invoicesRoute);
+app.use('/api/test', testRoute);
 
 // Server Port
 const PORT = process.env.PORT || 5000;
