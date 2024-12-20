@@ -1,6 +1,6 @@
-// backend/routes/tasks.js
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const Task = require('../models/Task');
 const auth = require('../middleware/auth');
 
@@ -14,7 +14,39 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// GET single task by ID
+// GET completed tasks
+router.get('/completed', auth, async (req, res) => {
+  try {
+    console.log('Full req.user:', req.user); // Debug: Log full user object
+    const userId = req.user.userId;
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      console.error('Invalid userId:', userId); // Check if userId is a valid ObjectId
+      return res.status(400).json({ error: 'Invalid user ID format' });
+    }
+
+    console.log('Executing query for userId:', userId);
+    const completedTasks = await Task.find({ userId: userId, completed: true });
+
+    console.log('Completed Tasks:', completedTasks); // Check the result of the query
+    res.json(completedTasks);
+  } catch (err) {
+    console.error('Error in /completed route:', err); // Log the error
+    res.status(500).json({ error: 'Server error', details: err.message });
+  }
+});
+
+// GET pending tasks
+router.get('/pending', auth, async (req, res) => {
+  try {
+    const pendingTasks = await Task.find({ userId: req.user.userId, completed: false });
+    res.json(pendingTasks);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// GET single task by ID (MUST be after specific routes)
 router.get('/:id', auth, async (req, res) => {
   try {
     const task = await Task.findOne({ _id: req.params.id, userId: req.user.userId });
@@ -75,26 +107,6 @@ router.patch('/:id/completed', auth, async (req, res) => {
     res.json(task);
   } catch (err) {
     res.status(500).json({ error: 'Failed to mark task' });
-  }
-});
-
-// GET completed tasks
-router.get('/completed', auth, async (req, res) => {
-  try {
-    const completedTasks = await Task.find({ userId: req.user.userId, completed: true });
-    res.json(completedTasks);
-  } catch (err) {
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// GET pending tasks
-router.get('/pending', auth, async (req, res) => {
-  try {
-    const pendingTasks = await Task.find({ userId: req.user.userId, completed: false });
-    res.json(pendingTasks);
-  } catch (err) {
-    res.status(500).json({ error: 'Server error' });
   }
 });
 

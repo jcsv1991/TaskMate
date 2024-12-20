@@ -22,7 +22,8 @@ module.exports = function (req, res, next) {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     // Attach the decoded user info to req.user
-    req.user = decoded; // Assumes token payload includes userId
+    //req.user = decoded; // Assumes token payload includes userId
+    req.user = { ...decoded, userId: decoded.userId }; // Retain full payload, ensure userId exists
     console.log('Decoded User Info:', req.user);
 
     next();

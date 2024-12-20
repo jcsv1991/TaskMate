@@ -23,6 +23,8 @@ app.use('/api/auth', authRoute);
 app.use('/api/clients', clientsRoute);
 app.use('/api/tasks', tasksRoute);
 app.use('/api', testRoute); // Register test route here
+app.use('/api/invoices', require('./routes/invoices'));
+
 
 // Server Port
 const PORT = process.env.PORT || 5000;
