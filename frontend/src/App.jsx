@@ -6,16 +6,45 @@ import Auth from './pages/Auth';
 import Tasks from './components/Tasks';
 import Clients from './components/Clients';
 import Invoices from './components/Invoices';
+import ProtectedRoute from './components/ProtectedRoute';
 
 const App = () => (
   <Router>
     <Navbar />
     <Routes>
-      <Route path="/" element={<Dashboard />} />
+      <Route 
+        path="/" 
+        element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        } 
+      />
       <Route path="/auth" element={<Auth />} />
-      <Route path="/tasks" element={<Tasks />} />
-      <Route path="/clients" element={<Clients />} />
-      <Route path="/invoices" element={<Invoices />} />
+      <Route 
+        path="/tasks" 
+        element={
+          <ProtectedRoute>
+            <Tasks />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/clients" 
+        element={
+          <ProtectedRoute>
+            <Clients />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/invoices" 
+        element={
+          <ProtectedRoute>
+            <Invoices />
+          </ProtectedRoute>
+        } 
+      />
     </Routes>
   </Router>
 );
