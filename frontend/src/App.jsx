@@ -11,41 +11,43 @@ import ProtectedRoute from './components/ProtectedRoute';
 const App = () => (
   <Router>
     <Navbar />
-    <Routes>
-      <Route 
-        path="/" 
-        element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        } 
-      />
-      <Route path="/auth" element={<Auth />} />
-      <Route 
-        path="/tasks" 
-        element={
-          <ProtectedRoute>
-            <Tasks />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/clients" 
-        element={
-          <ProtectedRoute>
-            <Clients />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/invoices" 
-        element={
-          <ProtectedRoute>
-            <Invoices />
-          </ProtectedRoute>
-        } 
-      />
-    </Routes>
+    <div style={{marginTop:'80px'}}>
+      <Routes>
+        <Route 
+          path="/" 
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          } 
+        />
+        <Route path="/auth" element={<Auth />} />
+        <Route 
+          path="/clients" 
+          element={
+            <ProtectedRoute>
+              <Clients />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/tasks" 
+          element={
+            <ProtectedRoute>
+              <Tasks />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/invoices" 
+          element={
+            <ProtectedRoute>
+              <Invoices />
+            </ProtectedRoute>
+          } 
+        />
+      </Routes>
+    </div>
   </Router>
 );
 

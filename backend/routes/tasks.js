@@ -3,21 +3,36 @@ const router = express.Router();
 const Task = require('../models/Task');
 const auth = require('../middleware/auth');
 
-// GET all tasks
+// GET all tasks with optional filtering/sorting
+// Added query params: completed, clientId, dueBefore, dueAfter, sortBy, order
 router.get('/', auth, async (req, res) => {
   try {
-    const tasks = await Task.find({ userId: req.user });
+    const { completed, clientId, dueBefore, dueAfter, sortBy, order } = req.query;
+    const filter = { userId: req.user };
+    if (completed === 'true') filter.completed = true;
+    if (completed === 'false') filter.completed = false;
+    if (clientId) filter.clientId = clientId;
+    if (dueBefore) filter.dueDate = { ...filter.dueDate, $lt: new Date(dueBefore) };
+    if (dueAfter) filter.dueDate = { ...filter.dueDate, $gt: new Date(dueAfter) };
+
+    let query = Task.find(filter);
+    if (sortBy) {
+      const sortOrder = order === 'desc' ? -1 : 1;
+      query = query.sort({ [sortBy]: sortOrder });
+    }
+
+    const tasks = await query.exec();
     res.json(tasks);
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// CREATE a new task
+// CREATE a new task with optional clientId
 router.post('/', auth, async (req, res) => {
-  const { title, description, dueDate } = req.body;
+  const { title, description, dueDate, clientId } = req.body;
   try {
-    const task = new Task({ userId: req.user, title, description, dueDate });
+    const task = new Task({ userId: req.user, title, description, dueDate, clientId });
     await task.save();
     res.status(201).json(task);
   } catch (err) {
@@ -25,23 +40,17 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-// GET all completed tasks (MUST be before :id routes)
-router.get('/completed', auth, async (req, res) => {
+// Toggle task completion state via PUT (allows switching back and forth)
+router.put('/:id/toggle', auth, async (req, res) => {
   try {
-    const tasks = await Task.find({ userId: req.user, completed: true });
-    res.json(tasks);
-  } catch (err) {
-    res.status(500).json({ error: 'Server error' });
-  }
-});
+    const task = await Task.findOne({ _id: req.params.id, userId: req.user });
+    if (!task) return res.status(404).json({ error: 'Task not found' });
 
-// GET all pending (incomplete) tasks (MUST be before :id routes)
-router.get('/pending', auth, async (req, res) => {
-  try {
-    const tasks = await Task.find({ userId: req.user, completed: false });
-    res.json(tasks);
+    task.completed = !task.completed;
+    await task.save();
+    res.json(task);
   } catch (err) {
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'Failed to toggle task completion state' });
   }
 });
 
@@ -58,11 +67,11 @@ router.get('/:id', auth, async (req, res) => {
 
 // UPDATE task by ID
 router.put('/:id', auth, async (req, res) => {
-  const { title, description, dueDate, completed } = req.body;
+  const { title, description, dueDate, completed, clientId } = req.body;
   try {
     const updatedTask = await Task.findOneAndUpdate(
       { _id: req.params.id, userId: req.user },
-      { title, description, dueDate, completed },
+      { title, description, dueDate, completed, clientId },
       { new: true }
     );
     if (!updatedTask) return res.status(404).json({ error: 'Task not found' });
@@ -72,7 +81,7 @@ router.put('/:id', auth, async (req, res) => {
   }
 });
 
-// MARK a task as completed (PATCH)
+// MARK a task as completed (existing route, kept for backward compatibility)
 router.patch('/:id/completed', auth, async (req, res) => {
   try {
     const updatedTask = await Task.findOneAndUpdate(

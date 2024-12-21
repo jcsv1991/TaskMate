@@ -3,10 +3,28 @@ const router = express.Router();
 const Invoice = require('../models/Invoice');
 const auth = require('../middleware/auth');
 
-// GET all invoices for the logged-in user
+// GET all invoices for the logged-in user with optional filters
+// Added query parameters for filtering: clientId, status, dueDate, amount
+// Sorting can also be implemented by query parameters like sortBy=field&order=asc/desc
 router.get('/', auth, async (req, res) => {
   try {
-    const invoices = await Invoice.find({ userId: req.user }).populate('clientId');
+    const { clientId, status, sortBy, order, minAmount, maxAmount, dueBefore, dueAfter } = req.query;
+    const filter = { userId: req.user };
+
+    if (clientId) filter.clientId = clientId;
+    if (status) filter.status = status;
+    if (minAmount) filter.amount = { ...filter.amount, $gte: Number(minAmount) };
+    if (maxAmount) filter.amount = { ...filter.amount, $lte: Number(maxAmount) };
+    if (dueBefore) filter.dueDate = { ...filter.dueDate, $lt: new Date(dueBefore) };
+    if (dueAfter) filter.dueDate = { ...filter.dueDate, $gt: new Date(dueAfter) };
+
+    let query = Invoice.find(filter).populate('clientId');
+    if (sortBy) {
+      const sortOrder = order === 'desc' ? -1 : 1;
+      query = query.sort({ [sortBy]: sortOrder });
+    }
+
+    const invoices = await query.exec();
     res.json(invoices);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch invoices' });
@@ -14,8 +32,6 @@ router.get('/', auth, async (req, res) => {
 });
 
 // CREATE a new invoice
-// Remember: clientId must be the _id of a Client that you have created. 
-// First, create a client via POST /api/clients, then use that client's _id here.
 router.post('/', auth, async (req, res) => {
   const { clientId, amount, dueDate } = req.body;
   try {
@@ -27,7 +43,7 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-// UPDATE an invoice
+// UPDATE an invoice (can update amount, dueDate, status)
 router.put('/:id', auth, async (req, res) => {
   const { amount, dueDate, status } = req.body;
   try {
