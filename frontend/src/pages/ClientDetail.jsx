@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import API from '../services/api';
-import { Alert, Table } from 'react-bootstrap';
+import { Alert, Table, Spinner } from 'react-bootstrap';
 
 const ClientDetail = () => {
   const { id } = useParams();
@@ -9,24 +9,49 @@ const ClientDetail = () => {
   const [tasks, setTasks] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const fetchClientDetails = async () => {
+  const fetchClient = async () => {
+    setLoading(true);
     try {
-      const res = await API.get(`/clients/${id}/details`);
+      const res = await API.get(`/clients/${id}`);
       setClient(res.data.client);
       setTasks(res.data.tasks);
       setInvoices(res.data.invoices);
     } catch (err) {
       setError('Failed to load client details');
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchClientDetails();
+    fetchClient();
   }, [id]);
 
-  if (error) return <div className="container mt-5"><Alert variant="danger">{error}</Alert></div>;
-  if (!client) return <div className="container mt-5">Loading...</div>;
+  if (error) {
+    return (
+      <div className="container mt-5">
+        <Alert variant="danger">{error}</Alert>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="container mt-5">
+        <Spinner animation="border" />
+      </div>
+    );
+  }
+
+  if (!client) {
+    return (
+      <div className="container mt-5">
+        <p>No client data found.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="container mt-5">
@@ -35,7 +60,9 @@ const ClientDetail = () => {
       <p><strong>Phone:</strong> {client.phone}</p>
 
       <h3 className="mt-4">Associated Tasks</h3>
-      {tasks.length === 0 ? <p>No tasks found</p> : (
+      {tasks.length === 0 ? (
+        <p>No tasks found</p>
+      ) : (
         <Table bordered hover responsive>
           <thead>
             <tr>
@@ -45,7 +72,7 @@ const ClientDetail = () => {
             </tr>
           </thead>
           <tbody>
-            {tasks.map(t => (
+            {tasks.map((t) => (
               <tr key={t._id}>
                 <td>{t.title}</td>
                 <td>{t.dueDate ? new Date(t.dueDate).toLocaleDateString() : 'N/A'}</td>
@@ -57,7 +84,9 @@ const ClientDetail = () => {
       )}
 
       <h3 className="mt-4">Associated Invoices</h3>
-      {invoices.length === 0 ? <p>No invoices found</p> : (
+      {invoices.length === 0 ? (
+        <p>No invoices found</p>
+      ) : (
         <Table bordered hover responsive>
           <thead>
             <tr>
@@ -67,7 +96,7 @@ const ClientDetail = () => {
             </tr>
           </thead>
           <tbody>
-            {invoices.map(inv => (
+            {invoices.map((inv) => (
               <tr key={inv._id}>
                 <td>${inv.amount}</td>
                 <td>{new Date(inv.dueDate).toLocaleDateString()}</td>

@@ -5,10 +5,10 @@ const Client = require('../models/Client');
 const Task = require('../models/Task');
 const Invoice = require('../models/Invoice');
 
-// GET: Fetch all clients with optional search
+// GET /api/clients?search=...
 router.get('/', auth, async (req, res) => {
   try {
-    const searchQuery = req.query.search || ''; 
+    const searchQuery = req.query.search || '';
     const regex = new RegExp(searchQuery, 'i');
     const clients = await Client.find({ userId: req.user, name: { $regex: regex } });
     res.json(clients);
@@ -18,8 +18,8 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// GET client details by ID
-router.get('/:id/details', auth, async (req, res) => {
+// GET /api/clients/:id => returns client + tasks + invoices
+router.get('/:id', auth, async (req, res) => {
   try {
     const client = await Client.findById(req.params.id);
     if (!client || client.userId.toString() !== req.user) {
@@ -37,29 +37,31 @@ router.get('/:id/details', auth, async (req, res) => {
   }
 });
 
-// GET: Fetch a single client by ID (original route)
-router.get('/:id', auth, async (req, res) => {
+// POST /api/clients
+router.post('/', auth, async (req, res) => {
   try {
-    const client = await Client.findById(req.params.id);
-    if (!client) {
-      return res.status(404).json({ msg: 'Client not found' });
+    const { name, email, phone } = req.body;
+    if (!name || !email || !phone) {
+      return res.status(400).json({ msg: 'Please provide name, email, and phone' });
     }
-
-    res.json(client);
+    const newClient = new Client({
+      name,
+      email,
+      phone,
+      userId: req.user
+    });
+    await newClient.save();
+    res.status(201).json({ msg: 'Client added successfully', client: newClient });
   } catch (err) {
     console.error(err.message);
-    if (err.kind === 'ObjectId') {
-      return res.status(400).json({ msg: 'Invalid client ID' });
-    }
-    res.status(500).send('Server Error');
+    res.status(500).json({ msg: 'Server Error' });
   }
 });
 
-// PUT: Update a client by ID
+// PUT /api/clients/:id
 router.put('/:id', auth, async (req, res) => {
   try {
     const { name, email, phone } = req.body;
-
     const updatedFields = {};
     if (name) updatedFields.name = name;
     if (email) updatedFields.email = email;
@@ -69,7 +71,6 @@ router.put('/:id', auth, async (req, res) => {
     if (!client) {
       return res.status(404).json({ msg: 'Client not found' });
     }
-
     if (client.userId.toString() !== req.user) {
       return res.status(401).json({ msg: 'Unauthorized' });
     }
@@ -90,15 +91,13 @@ router.put('/:id', auth, async (req, res) => {
   }
 });
 
-// DELETE: Delete a client by ID
+// DELETE /api/clients/:id
 router.delete('/:id', auth, async (req, res) => {
   try {
     const client = await Client.findById(req.params.id);
-
     if (!client) {
       return res.status(404).json({ msg: 'Client not found' });
     }
-
     if (client.userId.toString() !== req.user) {
       return res.status(401).json({ msg: 'Unauthorized' });
     }
@@ -111,33 +110,6 @@ router.delete('/:id', auth, async (req, res) => {
       return res.status(400).json({ msg: 'Invalid client ID' });
     }
     res.status(500).send('Server Error');
-  }
-});
-
-// POST: Add a new client
-router.post('/', auth, async (req, res) => {
-  try {
-    const { name, email, phone } = req.body;
-
-    if (!name || !email || !phone) {
-      return res.status(400).json({ msg: 'Please provide name, email, and phone' });
-    }
-
-    const userId = req.user;
-
-    const newClient = new Client({
-      name,
-      email,
-      phone,
-      userId,
-    });
-
-    await newClient.save();
-
-    res.status(201).json({ msg: 'Client added successfully', client: newClient });
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ msg: 'Server Error' });
   }
 });
 
