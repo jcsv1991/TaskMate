@@ -2,41 +2,38 @@ const express = require('express');
 const router = express.Router();
 const Task = require('../models/Task');
 const auth = require('../middleware/auth');
+const Client = require('../models/Client');
 
-// GET all tasks with optional filtering/sorting
-// Added query params: completed, clientId, dueBefore, dueAfter, sortBy, order
+// GET all tasks with filtering by client name and completed state
 router.get('/', auth, async (req, res) => {
   try {
-    const { completed, clientId, dueBefore, dueAfter, sortBy, order } = req.query;
+    const { completed, clientName, sortBy, order } = req.query;
     const filter = { userId: req.user };
+
     if (completed === 'true') filter.completed = true;
     if (completed === 'false') filter.completed = false;
-    if (clientId) filter.clientId = clientId;
-    if (dueBefore) filter.dueDate = { ...filter.dueDate, $lt: new Date(dueBefore) };
-    if (dueAfter) filter.dueDate = { ...filter.dueDate, $gt: new Date(dueAfter) };
+
+    // If clientName provided, find corresponding client IDs
+    if (clientName && clientName.trim() !== '') {
+      const regex = new RegExp(clientName, 'i');
+      const clients = await Client.find({ userId: req.user, name: { $regex: regex } }, '_id');
+      const clientIds = clients.map(c => c._id);
+      filter.clientId = { $in: clientIds.length > 0 ? clientIds : [] };
+    }
 
     let query = Task.find(filter);
-    if (sortBy) {
+    if (sortBy === 'dueDate') {
       const sortOrder = order === 'desc' ? -1 : 1;
-      query = query.sort({ [sortBy]: sortOrder });
+      query = query.sort({ dueDate: sortOrder });
+    } else if (sortBy === 'title') {
+      const sortOrder = order === 'desc' ? -1 : 1;
+      query = query.sort({ title: sortOrder });
     }
 
     const tasks = await query.exec();
     res.json(tasks);
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// CREATE a new task with optional clientId
-router.post('/', auth, async (req, res) => {
-  const { title, description, dueDate, clientId } = req.body;
-  try {
-    const task = new Task({ userId: req.user, title, description, dueDate, clientId });
-    await task.save();
-    res.status(201).json(task);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to create task' });
   }
 });
 

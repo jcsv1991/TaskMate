@@ -1,32 +1,35 @@
 import React, { useEffect, useState } from 'react';
 import API from '../services/api';
-import { Spinner, Alert } from 'react-bootstrap';
-
-// Changes:
-// - Added display of due dates
-// - Added toggling tasks between completed and pending
-// - Added filters (clientId, completed state, due date filters, sorting)
+import { Spinner, Alert, Button } from 'react-bootstrap';
 
 const Tasks = () => {
   const [tasks, setTasks] = useState([]);
-  const [formData, setFormData] = useState({ title:'', description:'', dueDate:'', clientId:'' });
+  const [formData, setFormData] = useState({ title:'', description:'', dueDate:'', clientName:'' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [adding, setAdding] = useState(false);
 
   const [filters, setFilters] = useState({
     completed: '',
-    clientId: '',
-    dueBefore: '',
-    dueAfter: '',
+    clientName: '',
     sortBy: '',
     order: 'asc'
   });
 
+  const [allClients, setAllClients] = useState([]);
+  const [clientSuggestions, setClientSuggestions] = useState([]);
+
+  const fetchClientsForAutocomplete = async () => {
+    const res = await API.get('/clients');
+    setAllClients(res.data);
+  };
+
   const fetchTasks = async () => {
     setLoading(true);
     try {
-      const res = await API.get('/tasks', { params: { ...filters } });
+      const { completed, clientName, sortBy, order } = filters;
+      const params = { completed, clientName, sortBy, order };
+      const res = await API.get('/tasks', { params });
       setTasks(res.data);
       setError('');
     } catch (err) {
@@ -38,28 +41,49 @@ const Tasks = () => {
 
   useEffect(() => {
     fetchTasks();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleChange = (e) => {
-    setFormData({...formData, [e.target.name]: e.target.value});
-  };
+  useEffect(() => {
+    fetchClientsForAutocomplete();
+  }, []);
+
+  useEffect(() => {
+    const filtered = allClients.filter(c => c.name.toLowerCase().includes(formData.clientName.toLowerCase()));
+    setClientSuggestions(filtered.slice(0,5));
+  }, [formData.clientName, allClients]);
 
   const handleFilterChange = (e) => {
     setFilters({...filters, [e.target.name]: e.target.value});
   };
 
-  const applyFilters = () => {
+  const applyFilters = async () => {
     fetchTasks();
+  };
+
+  const handleChange = (e) => {
+    setFormData({...formData, [e.target.name]: e.target.value});
   };
 
   const handleAddTask = async (e) => {
     e.preventDefault();
     setAdding(true);
     try {
-      await API.post('/tasks', formData);
+      // Need to find the clientId by clientName
+      let clientId = null;
+      if (formData.clientName) {
+        const client = allClients.find(c => c.name.toLowerCase() === formData.clientName.toLowerCase());
+        if (client) {
+          clientId = client._id;
+        }
+      }
+      await API.post('/tasks', { 
+        title: formData.title, 
+        description: formData.description, 
+        dueDate: formData.dueDate, 
+        clientId 
+      });
       await fetchTasks();
-      setFormData({ title:'', description:'', dueDate:'', clientId:'' });
+      setFormData({ title:'', description:'', dueDate:'', clientName:'' });
     } catch (err) {
       setError('Failed to add task');
     } finally {
@@ -67,12 +91,40 @@ const Tasks = () => {
     }
   };
 
-  const toggleTask = async (id) => {
+  const markCompleted = async (id) => {
     try {
-      await API.put(`/tasks/${id}/toggle`);
+      await API.patch(`/tasks/${id}/completed`);
       fetchTasks();
     } catch (err) {
-      setError('Failed to toggle task state');
+      setError('Failed to mark task as completed');
+    }
+  };
+
+  const markPending = async (id) => {
+    try {
+      // Use toggle endpoint until a dedicated pending endpoint is made
+      // If completed true => toggle will make it false
+      const task = tasks.find(t => t._id === id);
+      if (task && task.completed) {
+        // Just toggle it
+        await API.put(`/tasks/${id}/toggle`);
+      } else {
+        // If not completed, toggling sets it completed.
+        // Need a direct update:
+        await API.put(`/tasks/${id}`, { completed: false });
+      }
+      fetchTasks();
+    } catch (err) {
+      setError('Failed to set task as pending');
+    }
+  };
+
+  const deleteTask = async (id) => {
+    try {
+      await API.delete(`/tasks/${id}`);
+      fetchTasks();
+    } catch (err) {
+      setError('Failed to delete task');
     }
   };
 
@@ -90,13 +142,7 @@ const Tasks = () => {
           </select>
         </div>
         <div className="col">
-          <input className="form-control" name="clientId" placeholder="Client ID" value={filters.clientId} onChange={handleFilterChange} />
-        </div>
-        <div className="col">
-          <input className="form-control" name="dueBefore" placeholder="Due Before (YYYY-MM-DD)" value={filters.dueBefore} onChange={handleFilterChange} />
-        </div>
-        <div className="col">
-          <input className="form-control" name="dueAfter" placeholder="Due After (YYYY-MM-DD)" value={filters.dueAfter} onChange={handleFilterChange} />
+          <input className="form-control" name="clientName" placeholder="Client Name" value={filters.clientName} onChange={handleFilterChange} />
         </div>
         <div className="col">
           <select className="form-select" name="sortBy" value={filters.sortBy} onChange={handleFilterChange}>
@@ -126,9 +172,11 @@ const Tasks = () => {
                 <small>{task.description}</small><br/>
                 <small>Due: {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'N/A'}</small>
               </div>
-              <button className="btn btn-sm btn-info" onClick={() => toggleTask(task._id)}>
-                {task.completed ? "Mark Pending" : "Mark Complete"}
-              </button>
+              <div className="btn-group">
+                <Button variant="success" size="sm" onClick={() => markCompleted(task._id)}>Complete</Button>
+                <Button variant="warning" size="sm" onClick={() => markPending(task._id)}>Pending</Button>
+                <Button variant="danger" size="sm" onClick={() => deleteTask(task._id)}>Delete</Button>
+              </div>
             </li>
           ))}
         </ul>
@@ -140,7 +188,31 @@ const Tasks = () => {
         <input className="form-control my-2" name="title" placeholder="Task Title" value={formData.title} onChange={handleChange} required />
         <input className="form-control my-2" name="description" placeholder="Task Description" value={formData.description} onChange={handleChange} required />
         <input className="form-control my-2" type="date" name="dueDate" value={formData.dueDate} onChange={handleChange} required />
-        <input className="form-control my-2" name="clientId" placeholder="Client ID (optional)" value={formData.clientId} onChange={handleChange} />
+        
+        <div className="position-relative my-2">
+          <input 
+            className="form-control" 
+            name="clientName" 
+            placeholder="Client Name (optional)" 
+            value={formData.clientName} 
+            onChange={handleChange} 
+          />
+          {formData.clientName && clientSuggestions.length > 0 && (
+            <ul className="list-group position-absolute" style={{zIndex:10, width:'100%'}}>
+              {clientSuggestions.map(c => (
+                <li 
+                  key={c._id} 
+                  className="list-group-item" 
+                  style={{cursor:'pointer'}} 
+                  onClick={() => setFormData({...formData, clientName:c.name})}
+                >
+                  {c.name}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
         <button type="submit" className="btn btn-primary" disabled={adding}>Add Task</button>
       </form>
     </div>

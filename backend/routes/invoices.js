@@ -2,26 +2,28 @@ const express = require('express');
 const router = express.Router();
 const Invoice = require('../models/Invoice');
 const auth = require('../middleware/auth');
+const Client = require('../models/Client');
 
-// GET all invoices for the logged-in user with optional filters
-// Added query parameters for filtering: clientId, status, dueDate, amount
-// Sorting can also be implemented by query parameters like sortBy=field&order=asc/desc
+// GET all invoices with filtering by client name and status
 router.get('/', auth, async (req, res) => {
   try {
-    const { clientId, status, sortBy, order, minAmount, maxAmount, dueBefore, dueAfter } = req.query;
+    const { status, clientName, sortBy, order } = req.query;
     const filter = { userId: req.user };
 
-    if (clientId) filter.clientId = clientId;
+    // If clientName provided, find corresponding client IDs
+    if (clientName && clientName.trim() !== '') {
+      const regex = new RegExp(clientName, 'i');
+      const clients = await Client.find({ userId: req.user, name: { $regex: regex } }, '_id');
+      const clientIds = clients.map(c => c._id);
+      filter.clientId = { $in: clientIds.length > 0 ? clientIds : [] };
+    }
+
     if (status) filter.status = status;
-    if (minAmount) filter.amount = { ...filter.amount, $gte: Number(minAmount) };
-    if (maxAmount) filter.amount = { ...filter.amount, $lte: Number(maxAmount) };
-    if (dueBefore) filter.dueDate = { ...filter.dueDate, $lt: new Date(dueBefore) };
-    if (dueAfter) filter.dueDate = { ...filter.dueDate, $gt: new Date(dueAfter) };
 
     let query = Invoice.find(filter).populate('clientId');
-    if (sortBy) {
+    if (sortBy === 'dueDate') {
       const sortOrder = order === 'desc' ? -1 : 1;
-      query = query.sort({ [sortBy]: sortOrder });
+      query = query.sort({ dueDate: sortOrder });
     }
 
     const invoices = await query.exec();

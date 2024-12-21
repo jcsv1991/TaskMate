@@ -1,9 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import API from '../services/api';
-import { Spinner, Alert } from 'react-bootstrap';
-
-// Changes:
-// - Added sorting and filtering UI for invoices
+import { Spinner, Alert, Button } from 'react-bootstrap';
 
 const Invoices = () => {
   const [invoices, setInvoices] = useState([]);
@@ -11,20 +8,18 @@ const Invoices = () => {
   const [error, setError] = useState('');
 
   const [filters, setFilters] = useState({
-    clientId: '',
+    clientName: '',
     status: '',
     sortBy: '',
-    order: 'asc',
-    dueBefore: '',
-    dueAfter: '',
-    minAmount: '',
-    maxAmount: ''
+    order: 'asc'
   });
 
   const fetchInvoices = async () => {
     setLoading(true);
     try {
-      const res = await API.get('/invoices', { params: { ...filters } });
+      const { clientName, status, sortBy, order } = filters;
+      const params = { clientName, status, sortBy, order };
+      const res = await API.get('/invoices', { params });
       setInvoices(res.data);
       setError('');
     } catch (err) {
@@ -36,7 +31,6 @@ const Invoices = () => {
 
   useEffect(() => {
     fetchInvoices();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleFilterChange = (e) => {
@@ -56,14 +50,23 @@ const Invoices = () => {
     }
   };
 
+  const deleteInvoice = async (id) => {
+    try {
+      await API.delete(`/invoices/${id}`);
+      fetchInvoices();
+    } catch (err) {
+      setError('Failed to delete invoice');
+    }
+  };
+
   return (
-    <div className="container mt-4">
+    <div className="container mt-4" style={{paddingTop:'60px'}}>
       <h2>Invoices</h2>
       {error && <Alert variant="danger">{error}</Alert>}
 
       <div className="row g-2 mb-3">
         <div className="col">
-          <input className="form-control" name="clientId" placeholder="Client ID" value={filters.clientId} onChange={handleFilterChange} />
+          <input className="form-control" name="clientName" placeholder="Client Name" value={filters.clientName} onChange={handleFilterChange} />
         </div>
         <div className="col">
           <select className="form-select" name="status" value={filters.status} onChange={handleFilterChange}>
@@ -74,23 +77,9 @@ const Invoices = () => {
           </select>
         </div>
         <div className="col">
-          <input className="form-control" name="dueBefore" placeholder="Due Before (YYYY-MM-DD)" value={filters.dueBefore} onChange={handleFilterChange} />
-        </div>
-        <div className="col">
-          <input className="form-control" name="dueAfter" placeholder="Due After (YYYY-MM-DD)" value={filters.dueAfter} onChange={handleFilterChange} />
-        </div>
-        <div className="col">
-          <input className="form-control" name="minAmount" placeholder="Min Amount" value={filters.minAmount} onChange={handleFilterChange} />
-        </div>
-        <div className="col">
-          <input className="form-control" name="maxAmount" placeholder="Max Amount" value={filters.maxAmount} onChange={handleFilterChange} />
-        </div>
-        <div className="col">
           <select className="form-select" name="sortBy" value={filters.sortBy} onChange={handleFilterChange}>
             <option value="">No Sort</option>
             <option value="dueDate">Due Date</option>
-            <option value="amount">Amount</option>
-            <option value="status">Status</option>
           </select>
         </div>
         <div className="col">
@@ -113,6 +102,7 @@ const Invoices = () => {
               <th>Due Date</th>
               <th>Status</th>
               <th>Update Status</th>
+              <th>Delete</th>
             </tr>
           </thead>
           <tbody>
@@ -129,6 +119,7 @@ const Invoices = () => {
                     <option value="overdue">Overdue</option>
                   </select>
                 </td>
+                <td><Button variant="danger" size="sm" onClick={() => deleteInvoice(invoice._id)}>Delete</Button></td>
               </tr>
             ))}
           </tbody>

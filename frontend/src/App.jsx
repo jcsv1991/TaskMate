@@ -6,6 +6,9 @@ import Auth from './pages/Auth';
 import Tasks from './components/Tasks';
 import Clients from './components/Clients';
 import Invoices from './components/Invoices';
+import ClientDetail from './pages/ClientDetail';
+import TaskDetail from './pages/TaskDetail';
+import InvoiceDetail from './pages/InvoiceDetail';
 import ProtectedRoute from './components/ProtectedRoute';
 
 const App = () => (
@@ -43,6 +46,30 @@ const App = () => (
           element={
             <ProtectedRoute>
               <Invoices />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/client/:id" 
+          element={
+            <ProtectedRoute>
+              <ClientDetail />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/task/:id" 
+          element={
+            <ProtectedRoute>
+              <TaskDetail />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/invoice/:id" 
+          element={
+            <ProtectedRoute>
+              <InvoiceDetail />
             </ProtectedRoute>
           } 
         />

@@ -5,11 +5,10 @@ const Client = require('../models/Client');
 const Task = require('../models/Task');
 const Invoice = require('../models/Invoice');
 
-// GET: Fetch all clients
+// GET: Fetch all clients with optional search
 router.get('/', auth, async (req, res) => {
   try {
     const searchQuery = req.query.search || ''; 
-    // Added optional query param 'search' to filter clients by name
     const regex = new RegExp(searchQuery, 'i');
     const clients = await Client.find({ userId: req.user, name: { $regex: regex } });
     res.json(clients);
@@ -19,21 +18,15 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// GET: Fetch a single client by ID with associated tasks and invoices
+// GET client details by ID
 router.get('/:id/details', auth, async (req, res) => {
   try {
     const client = await Client.findById(req.params.id);
-    if (!client) {
+    if (!client || client.userId.toString() !== req.user) {
       return res.status(404).json({ msg: 'Client not found' });
     }
-    if (client.userId.toString() !== req.user) {
-      return res.status(401).json({ msg: 'Unauthorized' });
-    }
-
-    // Fetch associated tasks and invoices
     const tasks = await Task.find({ userId: req.user, clientId: client._id });
-    const invoices = await Invoice.find({ userId: req.user, clientId: client._id });
-
+    const invoices = await Invoice.find({ userId: req.user, clientId: client._id }).populate('clientId');
     res.json({ client, tasks, invoices });
   } catch (err) {
     console.error(err.message);

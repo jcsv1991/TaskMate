@@ -1,26 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import API from '../services/api';
-import { Spinner, Alert, Modal, Button } from 'react-bootstrap';
-
-// Changes:
-// - Added a search bar for clients
-// - Added a modal to view client details (contact, tasks, invoices)
-// - Added functionality within modal to toggle tasks and update invoices
+import { Spinner, Alert } from 'react-bootstrap';
+import { useNavigate } from 'react-router-dom';
 
 const Clients = () => {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [formData, setFormData] = useState({ name:'', email:'', phone:'' });
   const [adding, setAdding] = useState(false);
+  const [formData, setFormData] = useState({ name:'', email:'', phone:'' });
+  
   const [search, setSearch] = useState('');
+  const [autocompleteSuggestions, setAutocompleteSuggestions] = useState([]);
 
-  const [showModal, setShowModal] = useState(false);
-  const [selectedClient, setSelectedClient] = useState(null);
-  const [clientTasks, setClientTasks] = useState([]);
-  const [clientInvoices, setClientInvoices] = useState([]);
-
-  const [editingInvoice, setEditingInvoice] = useState({});
+  const navigate = useNavigate();
 
   const fetchClients = async () => {
     setLoading(true);
@@ -39,9 +32,15 @@ const Clients = () => {
     fetchClients();
   }, [search]);
 
+  useEffect(() => {
+    // Autocomplete suggestions
+    const filtered = clients.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
+    setAutocompleteSuggestions(filtered.slice(0,5));
+  }, [search, clients]);
+
   const handleChange = (e) => {
     setFormData({...formData, [e.target.name]: e.target.value});
-  };
+  }
 
   const handleAddClient = async (e) => {
     e.preventDefault();
@@ -56,80 +55,56 @@ const Clients = () => {
     } finally {
       setAdding(false);
     }
+  }
+
+  const handleClientClick = (id) => {
+    navigate(`/client/${id}`);
   };
 
-  const openClientDetails = async (clientId) => {
-    try {
-      const res = await API.get(`/clients/${clientId}/details`);
-      setSelectedClient(res.data.client);
-      setClientTasks(res.data.tasks);
-      setClientInvoices(res.data.invoices);
-      setShowModal(true);
-    } catch (err) {
-      setError('Failed to load client details');
-    }
-  };
-
-  const toggleTask = async (taskId) => {
-    try {
-      await API.put(`/tasks/${taskId}/toggle`);
-      const updatedTasks = await API.get(`/clients/${selectedClient._id}/details`);
-      setClientTasks(updatedTasks.data.tasks);
-    } catch (err) {
-      setError('Failed to toggle task');
-    }
-  };
-
-  const handleInvoiceFieldChange = (id, field, value) => {
-    setEditingInvoice((prev) => ({ ...prev, [id]: { ...prev[id], [field]: value } }));
-  };
-
-  const saveInvoiceChanges = async (invoice) => {
-    try {
-      const { amount, dueDate, status } = editingInvoice[invoice._id] || {};
-      await API.put(`/invoices/${invoice._id}`, {
-        amount: amount !== undefined ? amount : invoice.amount,
-        dueDate: dueDate !== undefined ? dueDate : invoice.dueDate,
-        status: status !== undefined ? status : invoice.status
-      });
-      const updatedDetails = await API.get(`/clients/${selectedClient._id}/details`);
-      setClientInvoices(updatedDetails.data.invoices);
-      setEditingInvoice((prev) => {
-        const updated = { ...prev };
-        delete updated[invoice._id];
-        return updated;
-      });
-    } catch (err) {
-      setError('Failed to update invoice');
-    }
+  const handleSuggestionClick = (id) => {
+    setSearch('');
+    navigate(`/client/${id}`);
   };
 
   return (
-    <div className="container mt-4">
+    <div className="container mt-4" style={{paddingTop:'60px'}}>
       <h2>Clients</h2>
       {error && <Alert variant="danger">{error}</Alert>}
 
-      <input 
-        type="text" 
-        className="form-control my-3" 
-        placeholder="Search clients by name" 
-        value={search} 
-        onChange={(e) => setSearch(e.target.value)} 
-      />
+      <div className="position-relative mb-3">
+        <input 
+          type="text" 
+          className="form-control"
+          placeholder="Search clients by name"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        {search && autocompleteSuggestions.length > 0 && (
+          <ul className="list-group position-absolute" style={{zIndex:10, width:'100%'}}>
+            {autocompleteSuggestions.map(s => (
+              <li 
+                key={s._id} 
+                className="list-group-item" 
+                style={{cursor:'pointer'}} 
+                onClick={() => handleSuggestionClick(s._id)}
+              >
+                {s.name}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       {loading ? <Spinner animation="border" /> : (
-        <ul className="list-group mt-3">
-          {clients.map((client) => (
-            <li 
-              className="list-group-item d-flex justify-content-between align-items-center" 
-              key={client._id}
-              style={{cursor:'pointer'}}
-              onClick={() => openClientDetails(client._id)}
-            >
-              <div>{client.name} - {client.email} - {client.phone}</div>
-            </li>
-          ))}
-        </ul>
+        <div style={{maxHeight:'200px', overflowY:'auto'}}>
+          <ul className="list-group mt-3">
+            {clients.slice(0,5).map((client) => (
+              <li className="list-group-item" key={client._id} style={{cursor:'pointer'}} onClick={() => handleClientClick(client._id)}>
+                {client.name}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       <hr/>
@@ -140,96 +115,6 @@ const Clients = () => {
         <input className="form-control my-2" name="phone" placeholder="Phone Number" value={formData.phone} onChange={handleChange} required />
         <button type="submit" className="btn btn-primary" disabled={adding}>Add Client</button>
       </form>
-
-      {/* Modal for Client Details */}
-      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>Client Details</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {selectedClient && (
-            <>
-              <h4>Contact Information</h4>
-              <p>Name: {selectedClient.name}</p>
-              <p>Email: {selectedClient.email}</p>
-              <p>Phone: {selectedClient.phone}</p>
-
-              <h4 className="mt-4">Tasks</h4>
-              {clientTasks.length === 0 && <p>No tasks found.</p>}
-              <ul className="list-group">
-                {clientTasks.map(t => (
-                  <li className="list-group-item d-flex justify-content-between align-items-center" key={t._id}>
-                    <div>
-                      <strong>{t.title}</strong> - {t.completed ? "Completed" : "Pending"}
-                      <br />
-                      <small>{t.description}</small><br />
-                      <small>Due: {t.dueDate ? new Date(t.dueDate).toLocaleDateString() : 'N/A'}</small>
-                    </div>
-                    <Button variant={t.completed ? "warning" : "success"} size="sm" onClick={() => toggleTask(t._id)}>
-                      {t.completed ? "Mark Pending" : "Mark Complete"}
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-
-              <h4 className="mt-4">Invoices</h4>
-              {clientInvoices.length === 0 && <p>No invoices found.</p>}
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Amount</th>
-                    <th>Due Date</th>
-                    <th>Status</th>
-                    <th>Edit</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {clientInvoices.map(inv => {
-                    const editData = editingInvoice[inv._id] || {};
-                    return (
-                      <tr key={inv._id}>
-                        <td>
-                          <input 
-                            type="number" 
-                            className="form-control" 
-                            defaultValue={inv.amount} 
-                            onChange={(e) => handleInvoiceFieldChange(inv._id, 'amount', e.target.value)} 
-                          />
-                        </td>
-                        <td>
-                          <input 
-                            type="date" 
-                            className="form-control" 
-                            defaultValue={new Date(inv.dueDate).toISOString().split('T')[0]} 
-                            onChange={(e) => handleInvoiceFieldChange(inv._id, 'dueDate', e.target.value)}
-                          />
-                        </td>
-                        <td>
-                          <select 
-                            className="form-select"
-                            defaultValue={inv.status}
-                            onChange={(e) => handleInvoiceFieldChange(inv._id, 'status', e.target.value)}
-                          >
-                            <option value="unpaid">Unpaid</option>
-                            <option value="paid">Paid</option>
-                            <option value="overdue">Overdue</option>
-                          </select>
-                        </td>
-                        <td>
-                          <Button variant="primary" size="sm" onClick={() => saveInvoiceChanges(inv)}>Save</Button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModal(false)}>Close</Button>
-        </Modal.Footer>
-      </Modal>
     </div>
   );
 };
