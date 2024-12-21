@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const API = axios.create({
-  baseURL: 'http://localhost:5000/api', // Update with your backend URL
+  baseURL: 'https://taskmate-2njo.onrender.com', //  backend URL
 });
 
 // Attach Authorization header if a token exists
