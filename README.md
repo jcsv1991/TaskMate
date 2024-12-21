@@ -17,7 +17,7 @@ TaskMate is a web application designed to help users manage tasks, clients, and 
 
 1. **Clone the Repository**: Run the following command:
    ```bash
-   git clone <repository-url>
+   git clone <https://github.com/jcsv1991/TaskMate>
    ```
 
 2. **Navigate to Project Directories**: Navigate to the `backend` and `frontend` folders separately.
