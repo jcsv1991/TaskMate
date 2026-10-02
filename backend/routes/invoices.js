@@ -43,6 +43,7 @@ module.exports = (config) => {
       // unpaid invoice past its due date even if nobody flipped the status.
       if (q.status === 'paid') filter.status = 'paid';
       if (q.status === 'overdue') Object.assign(filter, { status: { $ne: 'paid' }, dueDate: { $lt: today } });
+      if (q.status === 'outstanding') filter.status = { $ne: 'paid' };
       if (q.status === 'unpaid') Object.assign(filter, { status: { $ne: 'paid' }, dueDate: { $gte: today } });
 
       if (q.clientId) filter.clientId = q.clientId;

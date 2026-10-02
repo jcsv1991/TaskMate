@@ -39,7 +39,7 @@ const INVOICES = [
   [0, 2750, 'Website design - milestone 2', -62, 60],
   [3, 1500, 'Booking widget discovery', -40, 38],
   [1, 950, 'Monthly updates - September', -18, 15],
-  [3, 1200, 'Booking widget - discovery workshop', -9, 1],
+  [3, 1200, 'Booking widget - discovery workshop', -9, 0], // paid today, so "paid this month" is never empty
   [4, 4200, 'Website refresh - deposit', -21, null], // overdue
   [2, 1850, 'Online ordering - phase 2 deposit', -5, null], // overdue
   [3, 2200, 'Booking widget build', 12, null],

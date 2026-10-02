@@ -244,6 +244,7 @@ describe('POST /api/auth/demo', () => {
     expect(summary.body.tasks.completed).toBeGreaterThanOrEqual(1);
     expect(summary.body.invoices.overdueCount).toBeGreaterThanOrEqual(1);
     expect(summary.body.invoices.paidAmount).toBeGreaterThan(0);
+    expect(summary.body.invoices.paidThisMonth).toBeGreaterThan(0); // the dashboard card is never empty on day one
     expect(summary.body.revenueByMonth.filter((m) => m.paid > 0).length).toBeGreaterThanOrEqual(4);
   });
 

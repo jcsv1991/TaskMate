@@ -27,7 +27,8 @@ const update = z
   .refine((body) => Object.keys(body).length > 0, 'Nothing to update');
 
 const list = z.object({
-  status: queryField(z.enum(STATUSES)),
+  // "outstanding" = everything not yet paid (unpaid + overdue); the others match the effective status.
+  status: queryField(z.enum([...STATUSES, 'outstanding'])),
   clientId: queryField(objectId),
   clientName: queryField(z.string().trim().max(100)),
   search: queryField(z.string().trim().max(100)),

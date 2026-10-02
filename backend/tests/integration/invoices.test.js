@@ -135,6 +135,9 @@ describe('GET /api/invoices', () => {
     expect(numbers(await A.get('/api/invoices?status=paid'))).toEqual(['INV-0003']);
     expect(numbers(await A.get('/api/invoices?status=overdue'))).toEqual(['INV-0002']);
     expect(numbers(await A.get('/api/invoices?status=unpaid')).sort()).toEqual(['INV-0001', 'INV-0004']);
+    // "outstanding" is unpaid + overdue, i.e. everything that is not paid yet.
+    expect(numbers(await A.get('/api/invoices?status=outstanding')).sort()).toEqual(['INV-0001', 'INV-0002', 'INV-0004']);
+    expect((await A.get('/api/invoices?status=outstanding')).headers['x-total-amount']).toBe('425.25');
     expect((await A.get('/api/invoices?status=archived')).status).toBe(400);
     expect(numbers(await A.get('/api/invoices?status='))).toHaveLength(4);
   });
