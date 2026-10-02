@@ -1,139 +1,151 @@
 const express = require('express');
-const router = express.Router();
 const Task = require('../models/Task');
-const auth = require('../middleware/auth');
 const Client = require('../models/Client');
+const asyncHandler = require('../utils/asyncHandler');
+const escapeRegex = require('../utils/escapeRegex');
+const findNullsLast = require('../utils/nullsLast');
+const { badRequest, notFound } = require('../utils/httpError');
+const { resolveToday, startOfDay } = require('../utils/dates');
+const { setPaginationHeaders } = require('../utils/pagination');
+const { taskJSON } = require('../utils/serializers');
+const validate = require('../middleware/validate');
+const makeAuth = require('../middleware/auth');
+const schemas = require('../schemas/tasks');
 
-// GET /api/tasks with query params
-router.get('/', auth, async (req, res) => {
-  try {
-    const { completed, clientName, sortBy, order, dueBefore, dueAfter } = req.query;
-    const filter = { userId: req.user };
+const POPULATE = { path: 'clientId', select: 'name' };
 
-    if (completed === 'true') filter.completed = true;
-    else if (completed === 'false') filter.completed = false;
+module.exports = (config) => {
+  const router = express.Router();
+  router.use(makeAuth(config));
 
-    if (clientName && clientName.trim() !== '') {
-      const regex = new RegExp(clientName, 'i');
-      const matchedClients = await Client.find({ userId: req.user, name: { $regex: regex } }, '_id');
-      const clientIds = matchedClients.map(c => c._id);
-      filter.clientId = { $in: clientIds.length ? clientIds : [] };
-    }
-
-    if (dueBefore) {
-      filter.dueDate = { ...filter.dueDate, $lt: new Date(dueBefore) };
-    }
-    if (dueAfter) {
-      filter.dueDate = { ...filter.dueDate, $gt: new Date(dueAfter) };
-    }
-
-    let query = Task.find(filter);
-
-    if (sortBy === 'dueDate') {
-      const sortOrder = order === 'desc' ? -1 : 1;
-      query = query.sort({ dueDate: sortOrder });
-    } else if (sortBy === 'title') {
-      const sortOrder = order === 'desc' ? -1 : 1;
-      query = query.sort({ title: sortOrder });
-    }
-
-    const tasks = await query.exec();
-    res.json(tasks);
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ error: 'Server error' });
+  // A task may only point at one of the caller's own clients.
+  async function assertOwnClient(userId, clientId) {
+    if (!clientId) return;
+    const exists = await Client.exists({ _id: clientId, userId });
+    if (!exists) throw badRequest('Client not found');
   }
-});
 
-// POST /api/tasks
-router.post('/', auth, async (req, res) => {
-  const { title, description, dueDate, clientId } = req.body;
-  try {
-    const task = new Task({
-      userId: req.user,
-      title,
-      description,
-      dueDate,
-      clientId
-    });
-    await task.save();
-    res.status(201).json(task);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to create task' });
-  }
-});
+  const loadOne = async (userId, id, todayKey) => {
+    const task = await Task.findOne({ _id: id, userId }).populate(POPULATE).lean();
+    if (!task) throw notFound('Task not found');
+    return taskJSON(task, todayKey);
+  };
 
-// GET /api/tasks/completed
-router.get('/completed', auth, async (req, res) => {
-  try {
-    const tasks = await Task.find({ userId: req.user, completed: true });
-    res.json(tasks);
-  } catch (err) {
-    res.status(500).json({ error: 'Server error' });
-  }
-});
+  // GET /api/tasks
+  router.get(
+    '/',
+    validate(schemas.list, 'query'),
+    asyncHandler(async (req, res) => {
+      const q = req.valid.query;
+      const todayKey = resolveToday(req);
+      const filter = { userId: req.user };
 
-// GET /api/tasks/pending
-router.get('/pending', auth, async (req, res) => {
-  try {
-    const tasks = await Task.find({ userId: req.user, completed: false });
-    res.json(tasks);
-  } catch (err) {
-    res.status(500).json({ error: 'Server error' });
-  }
-});
+      if (q.completed) filter.completed = q.completed === 'true';
+      if (q.priority) filter.priority = q.priority;
+      if (q.clientId) filter.clientId = q.clientId;
 
-// GET /api/tasks/:id
-router.get('/:id', auth, async (req, res) => {
-  try {
-    const task = await Task.findOne({ _id: req.params.id, userId: req.user });
-    if (!task) return res.status(404).json({ error: 'Task not found' });
-    res.json(task);
-  } catch (err) {
-    res.status(500).json({ error: 'Server error' });
-  }
-});
+      // `clientName` is the original filter, kept for backwards compatibility.
+      if (q.clientName) {
+        const matched = await Client.find({ userId: req.user, name: new RegExp(escapeRegex(q.clientName), 'i') }, '_id').lean();
+        filter.clientId = { $in: matched.map((c) => c._id) };
+      }
+      if (q.search) {
+        const rx = new RegExp(escapeRegex(q.search), 'i');
+        filter.$or = [{ title: rx }, { description: rx }];
+      }
 
-// PUT /api/tasks/:id
-router.put('/:id', auth, async (req, res) => {
-  const { title, description, dueDate, completed, clientId } = req.body;
-  try {
-    const updatedTask = await Task.findOneAndUpdate(
-      { _id: req.params.id, userId: req.user },
-      { title, description, dueDate, completed, clientId },
-      { new: true }
-    );
-    if (!updatedTask) return res.status(404).json({ error: 'Task not found' });
-    res.json(updatedTask);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to update task' });
-  }
-});
+      const due = {};
+      if (q.dueAfter) due.$gte = q.dueAfter;
+      if (q.dueBefore) due.$lte = q.dueBefore;
+      if (q.overdue === 'true') {
+        filter.completed = false;
+        due.$lt = startOfDay(todayKey);
+      }
+      if (Object.keys(due).length) filter.dueDate = due;
 
-// PATCH /api/tasks/:id/completed
-router.patch('/:id/completed', auth, async (req, res) => {
-  try {
-    const updatedTask = await Task.findOneAndUpdate(
-      { _id: req.params.id, userId: req.user },
-      { completed: true },
-      { new: true }
-    );
-    if (!updatedTask) return res.status(404).json({ error: 'Task not found' });
-    res.json(updatedTask);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to mark task as completed' });
-  }
-});
+      const skip = (q.page - 1) * q.limit;
+      let items;
+      let total;
 
-// DELETE /api/tasks/:id
-router.delete('/:id', auth, async (req, res) => {
-  try {
-    const deletedTask = await Task.findOneAndDelete({ _id: req.params.id, userId: req.user });
-    if (!deletedTask) return res.status(404).json({ error: 'Task not found' });
-    res.json({ msg: 'Task deleted successfully' });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to delete task' });
-  }
-});
+      if (!q.sortBy || q.sortBy === 'dueDate') {
+        ({ items, total } = await findNullsLast(Task, filter, { field: 'dueDate', order: q.order, skip, limit: q.limit, populate: POPULATE }));
+      } else {
+        const dir = q.order === 'desc' ? -1 : 1;
+        [items, total] = await Promise.all([
+          Task.find(filter)
+            .populate(POPULATE)
+            .sort({ [q.sortBy]: dir, _id: 1 })
+            .skip(skip)
+            .limit(q.limit)
+            .lean(),
+          Task.countDocuments(filter),
+        ]);
+      }
 
-module.exports = router;
+      setPaginationHeaders(res, { total, page: q.page, limit: q.limit });
+      res.json(items.map((t) => taskJSON(t, todayKey)));
+    })
+  );
+
+  // GET /api/tasks/:id
+  router.get(
+    '/:id',
+    asyncHandler(async (req, res) => {
+      res.json(await loadOne(req.user, req.params.id, resolveToday(req)));
+    })
+  );
+
+  // POST /api/tasks
+  router.post(
+    '/',
+    validate(schemas.create),
+    asyncHandler(async (req, res) => {
+      const body = req.valid.body;
+      await assertOwnClient(req.user, body.clientId);
+      const task = await Task.create({ ...body, userId: req.user });
+      res.status(201).json(await loadOne(req.user, task._id, resolveToday(req)));
+    })
+  );
+
+  // PUT|PATCH /api/tasks/:id  (partial update; completing a task stamps completedAt)
+  const update = asyncHandler(async (req, res) => {
+    const body = { ...req.valid.body };
+    await assertOwnClient(req.user, body.clientId);
+
+    const existing = await Task.findOne({ _id: req.params.id, userId: req.user }).select('completed').lean();
+    if (!existing) throw notFound('Task not found');
+
+    if (body.completed === true && !existing.completed) body.completedAt = new Date();
+    if (body.completed === false) body.completedAt = null;
+
+    await Task.updateOne({ _id: req.params.id, userId: req.user }, { $set: body }, { runValidators: true });
+    res.json(await loadOne(req.user, req.params.id, resolveToday(req)));
+  });
+  router.put('/:id', validate(schemas.update), update);
+  router.patch('/:id', validate(schemas.update), update);
+
+  // PATCH /api/tasks/:id/completed  (original endpoint: mark as done)
+  router.patch(
+    '/:id/completed',
+    asyncHandler(async (req, res) => {
+      const existing = await Task.findOne({ _id: req.params.id, userId: req.user }).select('completed').lean();
+      if (!existing) throw notFound('Task not found');
+      if (!existing.completed) {
+        await Task.updateOne({ _id: req.params.id, userId: req.user }, { $set: { completed: true, completedAt: new Date() } });
+      }
+      res.json(await loadOne(req.user, req.params.id, resolveToday(req)));
+    })
+  );
+
+  // DELETE /api/tasks/:id
+  router.delete(
+    '/:id',
+    asyncHandler(async (req, res) => {
+      const deleted = await Task.findOneAndDelete({ _id: req.params.id, userId: req.user });
+      if (!deleted) throw notFound('Task not found');
+      res.json({ msg: 'Task deleted successfully' });
+    })
+  );
+
+  return router;
+};

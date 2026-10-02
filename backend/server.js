@@ -1,35 +1,27 @@
-require('dotenv').config();
-const express = require('express');
+const createApp = require('./app');
 const connectDB = require('./config/db');
-const cors = require('cors');
+const { loadConfig } = require('./config/env');
 
-const app = express();
+async function main() {
+  const config = loadConfig();
+  const app = createApp(config);
 
-// Middleware
-app.use(cors());
-app.use(express.json());
+  await connectDB(config.mongoUri);
+  console.log('MongoDB connected');
 
-// Connect to MongoDB
-connectDB();
+  const server = app.listen(config.port, () => console.log(`TaskMate API listening on port ${config.port} (${config.nodeEnv})`));
 
-// Route Imports
-const authRoute = require('./routes/auth');
-const clientsRoute = require('./routes/clients');
-const tasksRoute = require('./routes/tasks');
-const invoicesRoute = require('./routes/invoices');
-
-const testRoute = require('./routes/testRoute');
-
-// Routes
-app.use('/api/auth', authRoute);
-app.use('/api/clients', clientsRoute);
-app.use('/api/tasks', tasksRoute);
-app.use('/api/invoices', invoicesRoute);
-app.use('/api/test', testRoute); 
-
-module.exports = app;
-
-if (process.env.NODE_ENV !== 'test') {
-  const PORT = process.env.PORT || 5000;
-  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+  // Let in-flight requests finish when the host stops the container.
+  const shutdown = (signal) => {
+    console.log(`${signal} received, shutting down`);
+    server.close(() => process.exit(0));
+    setTimeout(() => process.exit(1), 10000).unref();
+  };
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
 }
+
+main().catch((err) => {
+  console.error('Failed to start:', err.message);
+  process.exit(1);
+});
