@@ -1,0 +1,18 @@
+{
+  "name": "taskmate-e2e",
+  "version": "2.0.0",
+  "private": true,
+  "description": "End-to-end browser tests for TaskMate (Playwright).",
+  "author": "Juan Soria",
+  "license": "MIT",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "screenshots": "E2E_SCREENSHOTS=1 playwright test --workers=1",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "~1.56.1"
+  }
+}
