@@ -1,0 +1,23 @@
+# Render Blueprint for the API. The frontend is deployed separately on Netlify (see frontend/netlify.toml).
+# Create it with: Render dashboard -> New -> Blueprint -> pick this repository.
+services:
+  - type: web
+    name: taskmate-api
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm ci --omit=dev
+    startCommand: node server.js
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGO_URI # MongoDB Atlas connection string
+        sync: false
+      - key: JWT_SECRET # generated once by Render, never committed
+        generateValue: true
+      - key: CORS_ORIGIN # your Netlify URL, e.g. https://taskmate.netlify.app (comma separated for several)
+        sync: false
+      - key: DEMO_ENABLED
+        value: "true"
