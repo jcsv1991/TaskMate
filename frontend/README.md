@@ -12,4 +12,4 @@ npm test               # Vitest + Testing Library + MSW
 npm run test:coverage
 ```
 
-Settings are read from `.env.local` (see `.env.example`): `VITE_API_URL`, `VITE_PROXY_TARGET` and `VITE_CURRENCY`. Requires Node.js 20 or newer.
+Settings are read from `.env.local` (see `.env.example`): `VITE_API_URL`, `VITE_PROXY_TARGET` and `VITE_CURRENCY`. Requires Node.js 22 or 24.

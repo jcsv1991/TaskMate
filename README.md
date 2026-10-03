@@ -135,7 +135,7 @@ TaskMate/
 
 ## Getting started
 
-You need **Node.js 20 or newer** (22 recommended) and a MongoDB database (a free [MongoDB Atlas](https://www.mongodb.com/atlas) cluster works, or a local `mongod`).
+You need **Node.js 22 or 24** and a MongoDB database (a free [MongoDB Atlas](https://www.mongodb.com/atlas) cluster works, or a local `mongod`).
 
 ```bash
 git clone https://github.com/jcsv1991/TaskMate.git
@@ -291,7 +291,7 @@ Import the repository and set:
 
 ### Continuous integration
 
-`.github/workflows/ci.yml` runs on every push to `main` and every pull request: lint and API tests on Node 20 and 22, lint, UI tests and a production build for the frontend, then the Playwright suite against a real MongoDB service. Render and Netlify redeploy automatically from `main`.
+`.github/workflows/ci.yml` runs on every push to `main` and every pull request: lint and API tests on Node 22 and 24, lint, UI tests and a production build for the frontend, then the Playwright suite against a real MongoDB service. Render and Netlify redeploy automatically from `main`.
 
 ## Security notes
 
