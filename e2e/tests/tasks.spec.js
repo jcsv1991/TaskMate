@@ -54,6 +54,7 @@ test.describe('tasks', () => {
     await dialog.getByLabel('Due date').fill(dateIn(1));
     await dialog.getByRole('button', { name: 'Add task' }).click();
     await expect(page.getByText('Task added')).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(0); // let the closing animation finish before looking at the page behind it
     const row = page.getByTestId('task-row').filter({ hasText: 'Write the proposal' });
     await expect(row).toContainText('Due tomorrow');
     await expect(row).toContainText('Scope, timeline, price');
@@ -66,6 +67,7 @@ test.describe('tasks', () => {
     await dialog.getByLabel('Priority').selectOption('high');
     await dialog.getByRole('button', { name: 'Save changes' }).click();
     await expect(page.getByText('Task updated')).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(0); // let the closing animation finish before looking at the page behind it
     await expect(page.getByTestId('task-row')).toContainText('Write and send the proposal');
     await expect(page.getByTestId('task-row')).toContainText('High');
 
@@ -83,6 +85,7 @@ test.describe('tasks', () => {
     // delete asks first
     await page.getByRole('button', { name: /Delete “Write and send the proposal”/ }).click();
     await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0); // let the closing animation finish before looking at the page behind it
     await expect(page.getByTestId('task-row')).toHaveCount(1);
     await page.getByRole('button', { name: /Delete “Write and send the proposal”/ }).click();
     await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click();

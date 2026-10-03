@@ -47,6 +47,7 @@ test.describe('a sleeping or failing server', () => {
 
     await dialog.getByRole('button', { name: 'Add task' }).click();
     await expect(page.getByText('Task added')).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(0); // let the closing animation finish before looking at the page behind it
     await expect(page.getByTestId('task-row')).toContainText('Persist me');
   });
 

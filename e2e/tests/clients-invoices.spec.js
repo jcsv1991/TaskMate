@@ -19,6 +19,7 @@ test.describe('clients', () => {
     await dialog.getByLabel('Phone').fill('604-555-0101');
     await dialog.getByRole('button', { name: 'Add client' }).click();
     await expect(page.getByText('Client added')).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(0); // let the closing animation finish before looking at the page behind it
 
     const names = page.getByTestId('client-grid').getByRole('heading');
     await expect(names).toHaveText(['Amy Ltd', 'Zed Corp']); // A–Z
@@ -33,6 +34,7 @@ test.describe('clients', () => {
     await dialog.getByLabel('Company').fill('Zed Holdings');
     await dialog.getByLabel('Notes').fill('Pays within 14 days');
     await dialog.getByRole('button', { name: 'Save changes' }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0); // let the closing animation finish before looking at the page behind it
     await expect(page.getByText('Zed Holdings')).toBeVisible();
     await expect(page.getByText('Pays within 14 days')).toBeVisible();
   });
@@ -55,6 +57,7 @@ test.describe('clients', () => {
     expect(await user.api.get('/invoices')).toHaveLength(2); // nothing was deleted yet
 
     await cascade.getByRole('button', { name: 'Cancel' }).click();
+    await expect(cascade).toBeHidden();
     await expect(page).toHaveURL(new RegExp(`/client/${client._id}$`));
 
     await page.getByRole('main').getByRole('button', { name: 'Delete' }).click();
@@ -159,6 +162,7 @@ test.describe('invoices', () => {
     await dialog.getByLabel('Amount').fill('300');
     await dialog.getByLabel('Due date').fill(dateIn(30));
     await dialog.getByRole('button', { name: 'Save changes' }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0); // let the closing animation finish before looking at the page behind it
     await expect(page.getByText('Invoice updated')).toBeVisible();
     await expect(page.getByText('Unpaid', { exact: true })).toBeVisible(); // a later due date means it is no longer overdue
     await expect(page.getByText('Amount due').locator('xpath=following-sibling::div[1]')).toHaveText('$300.00');

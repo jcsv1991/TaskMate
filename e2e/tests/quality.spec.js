@@ -14,6 +14,8 @@ const seed = async (request) => {
 
 const scan = async (page) => {
   await page.waitForLoadState('networkidle');
+  // Never sample colours halfway through a fade. (Endless animations such as spinners are left out.)
+  await page.evaluate(() => Promise.all(document.getAnimations().filter((a) => a.effect && a.effect.getComputedTiming().iterations !== Infinity).map((a) => a.finished.catch(() => {}))));
   const { violations } = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
   const summary = violations.map((v) => `${v.id} (${v.impact}): ${v.help}\n   ${v.nodes.slice(0, 3).map((n) => n.target.join(' ')).join('\n   ')}`);
   expect(violations, `Accessibility violations:\n${summary.join('\n')}`).toEqual([]);
@@ -55,6 +57,7 @@ for (const theme of ['light', 'dark']) {
       await page.getByRole('dialog').getByRole('button', { name: 'Add task' }).click(); // shows a field error
       await scan(page);
       await page.keyboard.press('Escape');
+      await expect(page.getByRole('dialog')).toHaveCount(0); // let the closing animation finish before looking at the page behind it
       await page.getByRole('button', { name: /Delete “Ship the thing”/ }).click();
       await expect(page.getByRole('dialog', { name: 'Delete this task?' })).toBeVisible();
       await scan(page);
@@ -93,7 +96,8 @@ test.describe('keyboard use', () => {
     await expect(dialog).toBeVisible();
     await expect(dialog.getByLabel('Title')).toBeFocused(); // autofocus on the first field
     for (let i = 0; i < 12; i += 1) await page.keyboard.press('Tab');
-    expect(await page.evaluate(() => !!document.activeElement.closest('[role="dialog"]'))).toBe(true); // focus never escapes
+    // Focus may pass through the browser chrome for a moment, but the dialog pulls it back (asynchronously), so poll.
+    await expect.poll(() => page.evaluate(() => !!document.activeElement.closest('[role="dialog"]'))).toBe(true);
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();
     await expect(newTask).toBeFocused(); // and returns to the trigger

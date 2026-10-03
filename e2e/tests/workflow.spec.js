@@ -19,6 +19,7 @@ test('from first client to first payment', async ({ page, request }) => {
   await dialog.getByLabel('Email').fill('hello@northwind.example');
   await dialog.getByRole('button', { name: 'Add client' }).click();
   await expect(page.getByText('Client added')).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0); // let the closing animation finish before looking at the page behind it
 
   // 2. work for that client, due in three days
   await page.getByRole('button', { name: 'Task', exact: true }).click();
@@ -28,6 +29,7 @@ test('from first client to first payment', async ({ page, request }) => {
   await dialog.getByLabel('Priority').selectOption('high');
   await dialog.getByLabel('Client').selectOption({ label: 'Northwind Studio' });
   await dialog.getByRole('button', { name: 'Add task' }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0); // let the closing animation finish before looking at the page behind it
 
   const stat = (id) => page.getByTestId(id);
   await expect(stat('stat-open-tasks')).toContainText('1');
@@ -46,6 +48,7 @@ test('from first client to first payment', async ({ page, request }) => {
   await dialog.getByLabel('Description').fill('Brand identity, milestone 1');
   await dialog.getByRole('button', { name: 'Create invoice' }).click();
   await expect(page.getByText('Invoice INV-0001 created')).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0); // let the closing animation finish before looking at the page behind it
 
   await expect(stat('stat-outstanding')).toContainText('$2,400.50');
   await expect(stat('stat-outstanding')).toContainText('$2,400.50 overdue');
@@ -93,6 +96,7 @@ test('invoice numbers are sequential per user and never reused', async ({ page, 
   await page.getByRole('button', { name: 'Delete invoice INV-0003' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click();
   await expect(page.getByTestId('invoice-row')).toHaveCount(2);
+  await expect(page.getByRole('dialog')).toHaveCount(0); // let the closing animation finish before looking at the page behind it
 
   await page.getByRole('button', { name: 'New invoice' }).click();
   const dialog = page.getByRole('dialog', { name: 'New invoice' });
