@@ -12,7 +12,7 @@ Built end to end by **Juan Soria** with React, Express and MongoDB, and covered 
 
 | | |
 |---|---|
-| **App** | https://YOUR-SITE.netlify.app |
+| **App** | https://mytaskmate1991.netlify.app |
 | **API health check** | https://taskmate-2njo.onrender.com/api/health |
 
 No sign-up needed: press **Explore with sample data** on the sign-in page and you get a private sample workspace (clients, tasks and invoices, some of them overdue) that you can change freely. Each demo workspace deletes itself after 24 hours.
