@@ -15,6 +15,14 @@ const dateFormat = new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', year: 'nu
 const monthFormat = new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', month: 'short' });
 
 export const formatDate = (iso) => (iso ? dateFormat.format(new Date(iso)) : '—');
+
+/**
+ * Moments (createdAt, paidAt) are real instants, not calendar dates, so they are
+ * shown as the day it was for the viewer when it happened.
+ */
+const localDateFormat = new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+export const formatLocalDate = (iso) => (iso ? localDateFormat.format(new Date(iso)) : '—');
+
 export const formatMonth = (yyyyMm) => monthFormat.format(new Date(`${yyyyMm}-01T00:00:00Z`));
 
 /** The viewer's own calendar date as YYYY-MM-DD (not UTC). */

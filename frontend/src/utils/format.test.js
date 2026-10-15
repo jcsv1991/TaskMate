@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { daysBetween, dueInfo, formatCurrency, formatCurrencyCompact, formatDate, formatMonth, greeting, initials, localDateKey, pluralize, toDateInput } from './format';
+import { daysBetween, dueInfo, formatCurrency, formatCurrencyCompact, formatDate, formatLocalDate, formatMonth, greeting, initials, localDateKey, pluralize, toDateInput } from './format';
 
 describe('currency', () => {
   it('formats dollars with cents and thousands separators', () => {
@@ -27,6 +27,11 @@ describe('dates', () => {
   it('shows a dash for missing dates', () => {
     expect(formatDate(null)).toBe('—');
     expect(formatDate('')).toBe('—');
+  });
+  it('shows a moment (createdAt, paidAt) as the viewer’s own day, not the UTC one', () => {
+    expect(formatLocalDate('2026-10-05T03:00:00.000Z')).toBe('Oct 4, 2026'); // 8pm on the 4th in Los Angeles
+    expect(formatLocalDate('2026-10-05T18:00:00.000Z')).toBe('Oct 5, 2026');
+    expect(formatLocalDate(null)).toBe('—');
   });
   it('formats month labels from YYYY-MM', () => {
     expect(formatMonth('2026-03')).toBe('Mar');
