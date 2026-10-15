@@ -4,7 +4,7 @@
 
 **A client, task and invoice workspace for freelancers.** Keep track of what needs doing, who it's for, what you've billed and what's still unpaid, all in one fast, accessible app.
 
-Built end to end by **Juan Soria** with React, Express and MongoDB, and covered by roughly 550 automated tests.
+Built end to end by **Juan Soria** with React, Express and MongoDB, and covered by roughly 560 automated tests.
 
 <p align="center">
   <img src="docs/screenshots/dashboard.png" alt="TaskMate dashboard showing open tasks, outstanding revenue, a six month revenue chart and overdue invoices" width="900">
@@ -26,7 +26,7 @@ No sign-up needed: press **Explore with sample data** on the sign-in page and yo
 - **Dashboard.** Open and overdue tasks, what is due this week, outstanding and overdue money, what was paid this month, a six month revenue chart, your top clients, and one-click "mark paid" / "complete" actions right where you see the problem.
 - **Tasks.** Priorities, due dates, client links, search, filters (status, priority, client), sorting and paging. Every filter lives in the URL, so a refresh, a bookmark or a link from the dashboard lands on the same view.
 - **Clients.** Contact details, notes, and a client page that shows their tasks, invoices and what they owe you. A client who still has invoices cannot be deleted by accident: you have to confirm that the invoices go too. Their tasks are kept and simply unlinked.
-- **Invoices.** Automatic sequential numbering (`INV-0001`, `INV-0002`, ...), paid / unpaid / overdue status that is worked out from the due date, filters, search, per-invoice detail page and totals for whatever you are looking at.
+- **Invoices.** Automatic sequential numbering (`INV-0001`, `INV-0002`, ...), paid / unpaid / overdue status that is worked out from the due date, filters, search, a per-invoice detail page with a one-click PDF download, and totals for whatever you are looking at.
 - **CSV export** for tasks, clients and invoices, safe to open in Excel or Sheets.
 - **Accounts.** Sign up, sign in, or delete your account and every record in it from the account menu.
 - **Light and dark themes** that follow your system setting and can be switched by hand.
@@ -63,7 +63,7 @@ No sign-up needed: press **Explore with sample data** on the sign-in page and yo
 
 | Layer | Tools |
 |---|---|
-| Frontend | React 18, Vite 6, React Router 7, React-Bootstrap / Bootstrap 5.3, Axios, Lucide icons |
+| Frontend | React 18, Vite 6, React Router 7, React-Bootstrap / Bootstrap 5.3, Axios, Lucide icons, jsPDF (loaded only when an invoice PDF is downloaded) |
 | Backend | Node.js, Express 4, Mongoose 8, Zod (validation), JSON Web Tokens, bcryptjs, Helmet, express-rate-limit |
 | Database | MongoDB (Atlas in production) |
 | Testing | Jest + Supertest + an in-memory MongoDB (API), Vitest + Testing Library + MSW (UI), Playwright + axe-core (end to end) |
@@ -201,8 +201,8 @@ Open http://localhost:5173. In development the Vite server proxies `/api` to the
 | Suite | Tool | Tests | Notes |
 |---|---|---|---|
 | API unit and integration | Jest, Supertest, mongodb-memory-server | 248 | About 98% line coverage. Runs against a real in-memory MongoDB, not mocks |
-| Frontend components and pages | Vitest, Testing Library, MSW | 256 | About 97% line coverage. A stateful fake API implements the real contract, including error cases |
-| End to end | Playwright, axe-core | 44 | Real browser against a real API and database |
+| Frontend components and pages | Vitest, Testing Library, MSW | 271 | About 97% line coverage. A stateful fake API implements the real contract, including error cases |
+| End to end | Playwright, axe-core | 46 | Real browser against a real API and database |
 
 ```bash
 npm test                                   # API + UI
