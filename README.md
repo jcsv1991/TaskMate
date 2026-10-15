@@ -1,5 +1,7 @@
 # TaskMate
 
+[![CI](https://github.com/jcsv1991/TaskMate/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/jcsv1991/TaskMate/actions/workflows/ci.yml?query=branch%3Amain)
+
 **A client, task and invoice workspace for freelancers.** Keep track of what needs doing, who it's for, what you've billed and what's still unpaid, all in one fast, accessible app.
 
 Built end to end by **Juan Soria** with React, Express and MongoDB, and covered by roughly 550 automated tests.
