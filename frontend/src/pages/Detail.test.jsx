@@ -1,7 +1,19 @@
 import { screen, waitFor, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { daysFromToday, fakeApi } from '../test/fakeApi';
 import { location, renderApp } from '../test/render';
+
+// Real jsPDF builds the file; only the final hand-off to the browser (save) is replaced, so tests can read what was built.
+const savePdf = vi.hoisted(() => vi.fn());
+vi.mock('jspdf', async (importOriginal) => {
+  const actual = await importOriginal();
+  function jsPDF(...args) {
+    const doc = new actual.jsPDF(...args);
+    doc.save = (...saveArgs) => savePdf.apply(doc, saveArgs);
+    return doc;
+  }
+  return { ...actual, jsPDF };
+});
 
 describe('Invoice detail page', () => {
   const seed = (overrides = {}) => {
@@ -45,6 +57,13 @@ describe('Invoice detail page', () => {
     await waitFor(() => expect(screen.getByText('Amount due').nextSibling).toHaveTextContent('$1,850.00'));
   });
 
+  it('shows the day it was paid in the viewer’s time zone', async () => {
+    // 03:00 UTC on Oct 5 is the evening of Oct 4 in Los Angeles, where the suite runs.
+    const { invoice } = seed({ status: 'paid', paidAt: '2026-10-05T03:00:00.000Z' });
+    renderApp(`/invoice/${invoice._id}`);
+    expect(await screen.findByText('Paid Oct 4, 2026')).toBeInTheDocument();
+  });
+
   it('edits the invoice', async () => {
     const { invoice } = seed();
     const { user } = renderApp(`/invoice/${invoice._id}`);
@@ -61,6 +80,54 @@ describe('Invoice detail page', () => {
     const { user } = renderApp(`/invoice/${invoice._id}`);
     await user.click(await screen.findByRole('button', { name: 'Print' }));
     expect(window.print).toHaveBeenCalled();
+  });
+
+  describe('Download PDF', () => {
+    beforeEach(() => {
+      savePdf.mockReset().mockResolvedValue();
+    });
+    const builtPdf = () => savePdf.mock.contexts[0].output();
+
+    it('downloads the invoice as a PDF named after its number', async () => {
+      const { invoice } = seed();
+      const { user } = renderApp(`/invoice/${invoice._id}`);
+      await user.click(await screen.findByRole('button', { name: 'Download PDF' }));
+      expect(await screen.findByText('Downloaded INV-0001.pdf')).toBeInTheDocument();
+      expect(savePdf).toHaveBeenCalledWith('INV-0001.pdf', { returnPromise: true });
+      expect(builtPdf()).toContain('(Initech) Tj');
+      expect(builtPdf()).toContain('(Ada Lovelace) Tj');
+      expect(builtPdf()).toContain('(OVERDUE) Tj');
+    });
+
+    it('disables the button while the file is being made', async () => {
+      let finish;
+      savePdf.mockReturnValue(new Promise((resolve) => (finish = resolve)));
+      const { invoice } = seed();
+      const { user } = renderApp(`/invoice/${invoice._id}`);
+      await user.click(await screen.findByRole('button', { name: 'Download PDF' }));
+      expect(await screen.findByRole('button', { name: 'Preparing PDF…' })).toBeDisabled();
+      finish();
+      expect(await screen.findByRole('button', { name: 'Download PDF' })).toBeEnabled();
+    });
+
+    it('leaves the demo account’s placeholder email off the PDF', async () => {
+      fakeApi.db.user = { ...fakeApi.db.user, name: 'Demo User', email: 'demo@taskmate.invalid', isDemo: true };
+      const { invoice } = seed();
+      const { user } = renderApp(`/invoice/${invoice._id}`);
+      await user.click(await screen.findByRole('button', { name: 'Download PDF' }));
+      await screen.findByText('Downloaded INV-0001.pdf');
+      expect(builtPdf()).toContain('(Demo User) Tj');
+      expect(builtPdf()).not.toContain('demo@taskmate.invalid');
+    });
+
+    it('says so when the PDF cannot be made', async () => {
+      savePdf.mockRejectedValue(new Error('blocked'));
+      const { invoice } = seed();
+      const { user } = renderApp(`/invoice/${invoice._id}`);
+      await user.click(await screen.findByRole('button', { name: 'Download PDF' }));
+      expect(await screen.findByText('Could not create the PDF. Please try again.')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Download PDF' })).toBeEnabled();
+    });
   });
 
   it('deletes after confirmation and returns to the list', async () => {

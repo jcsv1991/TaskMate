@@ -80,6 +80,20 @@ test.describe('on a phone', () => {
     await expect(page.getByText('Invoice INV-0001 marked as paid')).toBeVisible();
   });
 
+  test('the invoice PDF button fits the screen and downloads by touch', async ({ page, request }) => {
+    const { user } = await seed(request);
+    await signIn(page, user);
+    const [invoice] = await user.api.get('/invoices?sortBy=createdAt&order=asc');
+    await page.goto(`/invoice/${invoice._id}`);
+    const button = page.getByRole('button', { name: 'Download PDF' });
+    const box = await button.boundingBox();
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(375);
+    expect(box.height).toBeGreaterThanOrEqual(30); // a finger-sized target
+    const [download] = await Promise.all([page.waitForEvent('download'), button.tap()]);
+    expect(download.suggestedFilename()).toBe('INV-0001.pdf');
+  });
+
   test('dialogs fit the screen and can be completed by touch', async ({ page, request }) => {
     const { user } = await seed(request);
     await signIn(page, user);
