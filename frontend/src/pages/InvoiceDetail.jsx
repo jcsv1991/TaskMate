@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Button } from 'react-bootstrap';
-import { ArrowLeft, CheckCircle2, Pencil, Printer, RotateCcw, Trash2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, FileDown, Pencil, Printer, RotateCcw, Trash2 } from 'lucide-react';
 import { invoices } from '../services/endpoints';
 import { useAsync } from '../hooks/useAsync';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { getErrorMessage } from '../utils/errors';
 import { formatCurrency, formatDate, formatLocalDate } from '../utils/format';
+import { downloadInvoicePdf } from '../utils/invoicePdf';
 import ConfirmModal from '../components/ConfirmModal';
 import InvoiceFormModal from '../components/InvoiceFormModal';
 import { InvoiceStatusBadge } from '../components/Badges';
@@ -20,6 +21,7 @@ export default function InvoiceDetail() {
   const { user } = useAuth();
   const { data: invoice, loading, error, reload } = useAsync(() => invoices.get(id), [id]);
   const [modal, setModal] = useState(null);
+  const [preparingPdf, setPreparingPdf] = useState(false);
 
   if (loading && !invoice) return <LoadingBlock label="Loading invoice…" />;
   if (error && !invoice) {
@@ -43,6 +45,19 @@ export default function InvoiceDetail() {
       reload();
     } catch (err) {
       toast.error(getErrorMessage(err));
+    }
+  };
+
+  const downloadPdf = async () => {
+    setPreparingPdf(true);
+    try {
+      const from = { name: user && user.name, email: user && !user.isDemo ? user.email : '' };
+      const filename = await downloadInvoicePdf(invoice, { from });
+      toast.success(`Downloaded ${filename}`);
+    } catch {
+      toast.error('Could not create the PDF. Please try again.');
+    } finally {
+      setPreparingPdf(false);
     }
   };
 
@@ -77,6 +92,10 @@ export default function InvoiceDetail() {
           <Button variant="outline-secondary" onClick={() => setModal('edit')}>
             <Pencil size={15} className="me-1" aria-hidden="true" />
             Edit
+          </Button>
+          <Button variant="outline-secondary" onClick={downloadPdf} disabled={preparingPdf}>
+            <FileDown size={15} className="me-1" aria-hidden="true" />
+            {preparingPdf ? 'Preparing PDF…' : 'Download PDF'}
           </Button>
           <Button variant="outline-secondary" onClick={() => window.print()}>
             <Printer size={15} className="me-1" aria-hidden="true" />

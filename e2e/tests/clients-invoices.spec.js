@@ -179,6 +179,29 @@ test.describe('invoices', () => {
     await expect(numbers(page)).toHaveCount(2);
   });
 
+  test('Download PDF saves a real PDF of the invoice, loading the PDF library only when asked', async ({ page, request }) => {
+    const user = await seed(request);
+    await page.addInitScript(() => window.localStorage.setItem('taskmate_theme', 'dark')); // the file must not follow the screen theme
+    await signIn(page, user);
+    const scripts = [];
+    page.on('request', (r) => r.resourceType() === 'script' && scripts.push(r.url()));
+    await page.goto('/invoices');
+    await page.getByRole('link', { name: 'INV-0002' }).click();
+    await expect(page.getByRole('heading', { name: 'INV-0002' })).toBeVisible();
+    expect(scripts.some((url) => /jspdf/i.test(url))).toBe(false);
+
+    const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download PDF' }).click()]);
+    expect(download.suggestedFilename()).toBe('INV-0002.pdf');
+    const pdf = fs.readFileSync(await download.path(), 'latin1');
+    expect(pdf.startsWith('%PDF-')).toBe(true);
+    for (const text of ['INV-0002', 'OVERDUE', 'Test User', 'Acme', 'Brand guide', '$250.50', 'Amount due']) expect(pdf).toContain(`(${text}) Tj`);
+    expect(pdf).toContain('/Title (Invoice INV-0002)');
+    await expect(page.getByText('Downloaded INV-0002.pdf')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Download PDF' })).toBeEnabled();
+    expect(scripts.some((url) => /jspdf/i.test(url))).toBe(true);
+    expect(scripts.some((url) => /html2canvas|purify/i.test(url))).toBe(false); // only text drawing is used, not the HTML renderer
+  });
+
   test('CSV export downloads a correct, spreadsheet-safe file', async ({ page, request }) => {
     const user = await createUser(request);
     const client = await user.api.client({ name: '=HYPERLINK("http://evil.example","click")' });
