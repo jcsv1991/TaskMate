@@ -45,6 +45,13 @@ describe('Invoice detail page', () => {
     await waitFor(() => expect(screen.getByText('Amount due').nextSibling).toHaveTextContent('$1,850.00'));
   });
 
+  it('shows the day it was paid in the viewer’s time zone', async () => {
+    // 03:00 UTC on Oct 5 is the evening of Oct 4 in Los Angeles, where the suite runs.
+    const { invoice } = seed({ status: 'paid', paidAt: '2026-10-05T03:00:00.000Z' });
+    renderApp(`/invoice/${invoice._id}`);
+    expect(await screen.findByText('Paid Oct 4, 2026')).toBeInTheDocument();
+  });
+
   it('edits the invoice', async () => {
     const { invoice } = seed();
     const { user } = renderApp(`/invoice/${invoice._id}`);

@@ -7,7 +7,7 @@ import { useAsync } from '../hooks/useAsync';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { getErrorMessage } from '../utils/errors';
-import { formatCurrency, formatDate } from '../utils/format';
+import { formatCurrency, formatDate, formatLocalDate } from '../utils/format';
 import ConfirmModal from '../components/ConfirmModal';
 import InvoiceFormModal from '../components/InvoiceFormModal';
 import { InvoiceStatusBadge } from '../components/Badges';
@@ -101,7 +101,7 @@ export default function InvoiceDetail() {
           <div className="text-md-end">
             <div className="small text-secondary">Amount due</div>
             <div className="display-6 fw-bold">{paid ? formatCurrency(0) : formatCurrency(invoice.amount)}</div>
-            {paid && <div className="small text-success-emphasis">Paid {formatDate(invoice.paidAt)}</div>}
+            {paid && <div className="small text-success-emphasis">Paid {formatLocalDate(invoice.paidAt)}</div>}
           </div>
         </header>
 
